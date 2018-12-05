@@ -7,13 +7,14 @@ import numpy as np
 import os, time, model
 
 from datetime import datetime
-root_path = "/Volumes/PowerExtension"
+#root_path = "/Volumes/PowerExtension"
+root_path = "/home/ec2-user"
 
 source_path = "dataset/Processed"
 train_path = "train"
 test_path = "test"
-log_dir = "~/sw-unet/logs"
-model_dir = "~/sw-unet/models"
+log_dir = "sw-unet/logs"
+model_dir = "sw-unet/models"
 
 test_file_paths = []
 train_file_paths = []
@@ -93,10 +94,13 @@ def generate_route():
 
     global root_path, source_path
     global train_path, test_path
+    global log_dir, model_dir
 
     source_path = os.path.join(root_path, source_path)
     train_path = os.path.join(source_path, train_path)
     test_path = os.path.join(source_path, test_path)
+    log_dir = os.path.join(root_path, log_dir)
+    model_dir = os.path.join(root_path, model_dir)
 
 
 def split_data(training_series, test_series):
@@ -270,13 +274,13 @@ def main(task='all'):
 
     '''===========================GENERATE LOG AND MODEL DIRS ================'''
     try:
-        os.makedirs(log_dir)
+        os.makedirs(model_dir)
         print("Model directory:" + model_dir)
     except FileExistsError:
         print("Model directory alreadly exist:" + model_dir)
 
     try:
-        os.makedirs(model_dir)
+        os.makedirs(log_dir)
         print("Log directory alreadly exist:" + log_dir)
     except FileExistsError:
         print("Log directory alreadly exist:" + log_dir)
