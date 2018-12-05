@@ -198,7 +198,7 @@ def main(task='all'):
 
     global train_images, train_labels, test_images, test_labels
 
-    ratios_train = [0]
+    ratios_train = [0,2,4]
     ratios_test = [1]
 
     split_data(ratios_train,ratios_test)
@@ -246,7 +246,7 @@ def main(task='all'):
     # lr_decay = 0.5
     # decay_every = 100
     beta1 = 0.9
-    n_epoch = 100
+    n_epoch = 3
     print_freq_step = 100
     gpu_frac = 0.99
 
@@ -390,7 +390,7 @@ def main(task='all'):
                         a, b, x_m = sess.run([net_outputs_val, t_one_hot_seg, accuracy_per_label], feed_dict={t_image:val_images, t_seg:val_labels})
                         print("average accuracy for 11 labels are:")
                         for i in range(11):
-                            print("label" + str(i) + ":" + x_m[i])
+                            print("label" + str(i) + ":" + str(x_m[i]))
 
                 print("<----------No." + str(n_epoch + 1) + "epoch ended---------->")
 
