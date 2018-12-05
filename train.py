@@ -274,18 +274,19 @@ def main(task='all'):
     '''
 
     '''===========================GENERATE LOG AND MODEL DIRS ================'''
+    subdir = datetime.strftime(datetime.now(), '%Y%m%d-%H%M%S')
     try:
-        os.makedirs(model_dir)
+        os.makedirs(os.path.join(model_dir, subdir))
         print("Model directory:" + model_dir)
     except FileExistsError:
         print("Model directory alreadly exist:" + model_dir)
 
     try:
-        os.makedirs(log_dir)
+        os.makedirs(os.path.join(log_dir, subdir))
         print("Log directory alreadly exist:" + log_dir)
     except FileExistsError:
         print("Log directory alreadly exist:" + log_dir)
-    subdir = datetime.strftime(datetime.now(), '%Y%m%d-%H%M%S')
+
 
     '''===========================Network Compile============================='''
 
