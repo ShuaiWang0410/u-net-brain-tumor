@@ -126,14 +126,15 @@ def load_data(type = "train"):
         set = test_file_paths
         t = 1
 
+    full = np.ndarray(shape=(0,2,image_size,image_size))
+
     images = np.ndarray(shape=(0, image_size, image_size))
     labels = np.ndarray(shape=(0, image_size, image_size))
 
 
     for path in set:
         n = np.load(path)
-        images = np.concatenate((images, n[:,0,:,:]))
-        labels = np.concatenate((labels, n[:,1,:,:]))
+        full = np.concatenate((full, n))
 
 
         # max： around 500
@@ -148,10 +149,13 @@ def load_data(type = "train"):
             if images[j].min() < min:
                 min = images[j].min()
 
-        print(images[0])
+        # print(images[0])
         print("Reading " + type + " dataset:" + path + " finished")
-    images /= 1.
-    images -= 200.
+    np.random.shuffle(full)
+    images = np.concatenate((images, full[:, 0, :, :]))
+    labels = np.concatenate((labels, full[:, 1, :, :]))
+    images /= 10.
+    images -= 20.
 
     if t == 0:
         train_size = labels.shape[0]
@@ -366,6 +370,7 @@ def main(task='all'):
         ## load existing model if possible
         ## tl.files.load_and_assign_npz(sess=sess, name=save_dir+'/u_net_{}.npz'.format(task), network=net)
 
+        g_step = 0
         ###======================== TRAINING ================================###
         with sess.as_default():
             print("<---------------Start Training the Set---------------->")
@@ -385,7 +390,8 @@ def main(task='all'):
                     summary.value.add(tag='dice_loss', simple_value=dice_loss_)
                     summary.value.add(tag='dice_hard', simple_value=dice_hard_loss_)
                     summary.value.add(tag='iou_loss', simple_value=iou_loss_)
-                    summary_writer.add_summary(summary, step)
+                    summary_writer.add_summary(summary, g_step)
+                    g_step += 1
 
                     if step % 10 == 0:
                         a, b, x_m = sess.run([net_outputs_val, t_one_hot_seg, accuracy_per_label], feed_dict={t_image:val_images, t_seg:val_labels})
