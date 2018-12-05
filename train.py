@@ -294,7 +294,7 @@ def main(task='all'):
         config.gpu_options.allow_growth = True
         sess = tf.Session(config=config, graph=tf.get_default_graph())
 
-        saver = tf.train.Saver(tf.trainable_variables(), max_to_keep=3)
+        saver = tf.train.Saver(max_to_keep=2)
         summary_writer = tf.summary.FileWriter(log_dir, sess.graph)
         # with tf.device('/gpu:0'): #<- remove it if you train on CPU or other GPU
         ###======================== DEFIINE MODEL =======================###
