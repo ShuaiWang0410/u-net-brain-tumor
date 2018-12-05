@@ -198,8 +198,8 @@ def main(task='all'):
 
     global train_images, train_labels, test_images, test_labels
 
-    ratios_train = [0,2,4,5,6]
-    ratios_test = [1,3]
+    ratios_train = [0]
+    ratios_test = [1]
 
     split_data(ratios_train,ratios_test)
     train_images, train_labels = load_data("train")
