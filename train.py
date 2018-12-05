@@ -368,7 +368,7 @@ def main(task='all'):
         ###======================== TRAINING ================================###
         with sess.as_default():
             print("<---------------Start Training the Set---------------->")
-            val_images, val_labels = get_validation(120)
+            val_images, val_labels = get_validation(10)
             for epoch in range(0, n_epoch):
                 epoch_time = time.time()
 
