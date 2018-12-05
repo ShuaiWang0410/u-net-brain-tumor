@@ -138,8 +138,7 @@ def load_data(type = "train"):
 
         # max： around 500
         # min:  around 1
-        images /= 1.
-        images -= 200.
+
 
         max = 0.
         min = 8.
@@ -151,6 +150,8 @@ def load_data(type = "train"):
 
         print(images[0])
         print("Reading " + type + " dataset:" + path + " finished")
+    images /= 1.
+    images -= 200.
 
     if t == 0:
         train_size = labels.shape[0]
@@ -290,13 +291,7 @@ def main(task='all'):
 
     # with tf.device('/cpu:0'):
     with tf.Graph().as_default():
-        gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=gpu_frac)
-        config = tf.ConfigProto(gpu_options=gpu_options, allow_soft_placement=True)
-        config.gpu_options.allow_growth = True
-        sess = tf.Session(config=config, graph=tf.get_default_graph())
 
-        saver = tf.train.Saver(max_to_keep=2)
-        summary_writer = tf.summary.FileWriter(log_dir, sess.graph)
         # with tf.device('/gpu:0'): #<- remove it if you train on CPU or other GPU
         ###======================== DEFIINE MODEL =======================###
         ## nz is 4 as we input all Flair, T1, T1c and T2.
@@ -359,6 +354,13 @@ def main(task='all'):
         train_op = tf.train.AdamOptimizer(lr_v, beta1=beta1).minimize(dice_loss, var_list=t_vars)
 
         ###======================== LOAD MODEL ==============================###
+
+        gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=gpu_frac)
+        config = tf.ConfigProto(gpu_options=gpu_options, allow_soft_placement=True)
+        config.gpu_options.allow_growth = True
+        sess = tf.Session(config=config, graph=tf.get_default_graph())
+        saver = tf.train.Saver(max_to_keep=2)
+        summary_writer = tf.summary.FileWriter(log_dir, sess.graph)
         tl.layers.initialize_global_variables(sess)
         ## load existing model if possible
         ## tl.files.load_and_assign_npz(sess=sess, name=save_dir+'/u_net_{}.npz'.format(task), network=net)
