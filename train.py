@@ -288,7 +288,8 @@ def main(task='all'):
 
     '''===========================Network Compile============================='''
 
-    with tf.device('/cpu:0'):
+    # with tf.device('/cpu:0'):
+    with tf.Graph().as_default():
         gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=gpu_frac)
         config = tf.ConfigProto(gpu_options=gpu_options, allow_soft_placement=True)
         config.gpu_options.allow_growth = True
@@ -363,35 +364,36 @@ def main(task='all'):
         ## tl.files.load_and_assign_npz(sess=sess, name=save_dir+'/u_net_{}.npz'.format(task), network=net)
 
         ###======================== TRAINING ================================###
-    print("<---------------Start Training the Set---------------->")
-    val_images, val_labels = get_validation(120)
-    for epoch in range(0, n_epoch):
-        epoch_time = time.time()
+        with sess.as_default():
+            print("<---------------Start Training the Set---------------->")
+            val_images, val_labels = get_validation(120)
+            for epoch in range(0, n_epoch):
+                epoch_time = time.time()
 
-        # Shuai Wang: training
-        print("<----------No." + str(n_epoch + 1) + "epoch started---------->")
-        steps = 96 * len(ratios_train)
-        for step in range(steps):
-            img_batch, lab_batch = next_batch(batch_size)
-            a, dice_loss_, dice_hard_loss_, iou_loss_ ,_ = sess.run([net_outputs, dice_loss, dice_hard_loss, iou_loss, train_op],
-                                                                 feed_dict={t_image:img_batch, t_seg:lab_batch})
-            print("loss for step " + str(step) +  " is " + str(dice_loss_))
-            summary = tf.Summary()
-            summary.value.add(tag='dice_loss', simple_value=dice_loss_)
-            summary.value.add(tag='dice_hard', simple_value=dice_hard_loss_)
-            summary.value.add(tag='iou_loss', simple_value=iou_loss_)
-            summary_writer.add_summary(summary, step)
+                # Shuai Wang: training
+                print("<----------No." + str(n_epoch + 1) + "epoch started---------->")
+                steps = 96 * len(ratios_train)
+                for step in range(steps):
+                    img_batch, lab_batch = next_batch(batch_size)
+                    a, dice_loss_, dice_hard_loss_, iou_loss_ ,_ = sess.run([net_outputs, dice_loss, dice_hard_loss, iou_loss, train_op],
+                                                                         feed_dict={t_image:img_batch, t_seg:lab_batch})
+                    print("loss for step " + str(step) +  " is " + str(dice_loss_))
+                    summary = tf.Summary()
+                    summary.value.add(tag='dice_loss', simple_value=dice_loss_)
+                    summary.value.add(tag='dice_hard', simple_value=dice_hard_loss_)
+                    summary.value.add(tag='iou_loss', simple_value=iou_loss_)
+                    summary_writer.add_summary(summary, step)
 
-            if step % 10 == 0:
-                a, b, x_m = sess.run([net_outputs_val, t_one_hot_seg, accuracy_per_label], feed_dict={t_image:val_images, t_seg:val_labels})
-                print("average accuracy for 11 labels are:")
-                for i in range(11):
-                    print("label" + str(i) + ":" + x_m[i])
+                    if step % 10 == 0:
+                        a, b, x_m = sess.run([net_outputs_val, t_one_hot_seg, accuracy_per_label], feed_dict={t_image:val_images, t_seg:val_labels})
+                        print("average accuracy for 11 labels are:")
+                        for i in range(11):
+                            print("label" + str(i) + ":" + x_m[i])
 
-        print("<----------No." + str(n_epoch + 1) + "epoch ended---------->")
+                print("<----------No." + str(n_epoch + 1) + "epoch ended---------->")
 
 
-    save_variables_and_metagraph(sess, saver, summary_writer, model_dir, subdir, n_epoch)
+            save_variables_and_metagraph(sess, saver, summary_writer, model_dir, subdir, n_epoch)
 
     # Shuai Wang: training end
 
