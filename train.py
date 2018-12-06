@@ -334,9 +334,9 @@ def main(task='all'):
         '''======================== DEFINE MY LOSS ======================'''
 
         net_outputs = tl.act.pixel_wise_softmax(net.outputs)
-        dice_loss = 1 - tl.cost.dice_coe(net_outputs, t_one_hot_seg)
-        iou_loss = tl.cost.iou_coe(net_outputs, t_one_hot_seg)
-        dice_hard_loss = tl.cost.dice_hard_coe(net_outputs, t_one_hot_seg)
+        dice_loss = 1 - tl.cost.dice_coe(net_outputs, t_one_hot_seg, axis=(0,1,2,3))
+        iou_loss = tl.cost.iou_coe(net_outputs, t_one_hot_seg, axis=(0,1,2,3))
+        dice_hard_loss = tl.cost.dice_hard_coe(net_outputs, t_one_hot_seg, axis=(0,1,2,3))
 
         '''======================== DEFINE ACCURACY ====================='''
         net_outputs_val = tl.act.pixel_wise_softmax(net_val.outputs)
