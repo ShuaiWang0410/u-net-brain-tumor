@@ -45,7 +45,7 @@ def u_net(x, is_train=False, reuse=False, n_out=1):
         up1 = ConcatLayer([up1, conv1] , 3, name='concat1')
         conv1 = Conv2d(up1, 64, (3, 3), act=tf.nn.relu, name='uconv1_1')
         conv1 = Conv2d(conv1, 64, (3, 3), act=tf.nn.relu, name='uconv1_2')
-        conv1 = Conv2d(conv1, n_out, (1, 1), act=tf.nn.sigmoid, name='uconv1')
+        conv1 = Conv2d(conv1, n_out, (1, 1), act=tf.nn.relu, name='uconv1')
     return conv1
 
 # def u_net(x, is_train=False, reuse=False, pad='SAME', n_out=2):
