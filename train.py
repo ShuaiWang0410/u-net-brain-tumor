@@ -7,14 +7,19 @@ import numpy as np
 import os, time, model
 
 from datetime import datetime
-#root_path = "/Volumes/PowerExtension"
-root_path = "/home/ec2-user"
+from PIL import Image
+root_path = "/Volumes/PowerExtension"
+#root_path = "/home/ec2-user"
 
 source_path = "dataset/Processed"
 train_path = "train"
 test_path = "test"
 log_dir = "sw-unet/logs"
 model_dir = "sw-unet/models"
+# ratios_train = [0,2,3,4,6]
+# ratios_test = [1,5]
+ratios_train = [0]
+ratios_test = [1]
 
 test_file_paths = []
 train_file_paths = []
@@ -155,8 +160,8 @@ def load_data(type = "train"):
     np.random.shuffle(full)
     images = np.concatenate((images, full[:, 0, :, :]))
     labels = np.concatenate((labels, full[:, 1, :, :]))
-    images /= 100.
-    images -= 2.
+    images /= 10.
+    images -= 20.
 
     if t == 0:
         train_size = labels.shape[0]
@@ -164,6 +169,16 @@ def load_data(type = "train"):
         test_size = labels.shape[0]
     labels = labels.astype(np.int32)
     return images, labels
+
+def get_inf(number):
+    global test_images, test_labels
+    img_batch = test_images[number, :, :]
+    x = img_batch.shape
+    img_batch.shape = (1, x[0], x[1], 1)
+    lab_batch = test_labels[number, :, :]
+    y = lab_batch.shape
+    lab_batch.shape = (1, x[0], x[1])
+    return img_batch, lab_batch
 
 def get_validation(val_size):
     '''
@@ -212,14 +227,11 @@ def next_batch(batch_size):
 
 # Shuai Wang
 
-def main(task='all'):
+def main(args):
     ## Create folder to save trained model and result images
 
     global train_images, train_labels, test_images, test_labels
     global model_dir, log_dir
-
-    ratios_train = [0,2,3,4,6]
-    ratios_test = [1,5]
 
     split_data(ratios_train,ratios_test)
     train_images, train_labels = load_data("train")
@@ -333,10 +345,10 @@ def main(task='all'):
 
         '''======================== DEFINE MY LOSS ======================'''
 
-        net_outputs = tl.act.pixel_wise_softmax(net.outputs)
-        dice_loss = 1 - tl.cost.dice_coe(net_outputs, t_one_hot_seg, axis=(0,1,2,3))
-        iou_loss = tl.cost.iou_coe(net_outputs, t_one_hot_seg, axis=(0,1,2,3))
-        dice_hard_loss = tl.cost.dice_hard_coe(net_outputs, t_one_hot_seg, axis=(0,1,2,3))
+        net_output = tl.act.pixel_wise_softmax(net.outputs)
+        dice_loss = 1 - tl.cost.dice_coe(net_output, t_one_hot_seg, axis=(0,1,2,3))
+        iou_loss = tl.cost.iou_coe(net_output, t_one_hot_seg, axis=(0,1,2,3))
+        dice_hard_loss = tl.cost.dice_hard_coe(net_output, t_one_hot_seg, axis=(0,1,2,3))
 
         '''======================== DEFINE ACCURACY ====================='''
         net_outputs_val = tl.act.pixel_wise_softmax(net_val.outputs)
@@ -353,6 +365,9 @@ def main(task='all'):
             #                                                           threshold=0.5))
             accuracy_per_label.append(tf.reduce_mean(tf.reduce_mean(tf.cast(tf.equal(net_outputs_val[:, :, :, i], t_one_hot_seg[:,:,:,i]), tf.float32), axis=(1,2))))
 
+        '''======================== DEFINE INFERENCE ======================'''
+        net_inf = tf.argmax(net_test.outputs, 3)
+        infer = tf.reduce_mean(tf.cast(tf.equal(net_inf, tf.argmax(t_one_hot_seg, 3)), tf.float32), axis = (1,2))
 
         '''
         ###======================== DEFINE LOSS =========================###
@@ -376,7 +391,7 @@ def main(task='all'):
             lr_v = tf.Variable(lr, trainable=False)
         train_op = tf.train.AdamOptimizer(lr_v, beta1=beta1).minimize(dice_loss, var_list=t_vars)
 
-        ###======================== LOAD MODEL ==============================###
+        ###======================== CONFIG MODEL ==============================###
 
         gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=gpu_frac)
         config = tf.ConfigProto(gpu_options=gpu_options, allow_soft_placement=True)
@@ -384,6 +399,7 @@ def main(task='all'):
         sess = tf.Session(config=config, graph=tf.get_default_graph())
         saver = tf.train.Saver(max_to_keep=2)
         summary_writer = tf.summary.FileWriter(log_dir, sess.graph)
+        # if (args.task == 'training'):
         tl.layers.initialize_global_variables(sess)
         ## load existing model if possible
         ## tl.files.load_and_assign_npz(sess=sess, name=save_dir+'/u_net_{}.npz'.format(task), network=net)
@@ -391,47 +407,62 @@ def main(task='all'):
         g_step = 0
         ###======================== TRAINING ================================###
         with sess.as_default():
-            print("<---------------Start Training the Set---------------->")
-            # val_images, val_labels = get_validation(batch_size * 4)
-            for epoch in range(0, n_epoch):
-                epoch_time = time.time()
+            if (args.task == 'training'):
+                print("<---------------Start Training the Set---------------->")
+                # val_images, val_labels = get_validation(batch_size * 4)
+                for epoch in range(0, n_epoch):
+                    epoch_time = time.time()
 
-                # Shuai Wang: training
-                print("<----------No." + str(epoch) + "epoch started---------->")
-                steps = int((960 / batch_size) * len(ratios_train))
-                for step in range(steps):
-                    img_batch, lab_batch = next_batch(batch_size)
+                    # Shuai Wang: training
+                    print("<----------No." + str(epoch) + "epoch started---------->")
+                    steps = int((960 / batch_size) * len(ratios_train))
+                    for step in range(steps):
+                        img_batch, lab_batch = next_batch(batch_size)
 
-                    a, dice_loss_, dice_hard_loss_, iou_loss_ ,_ = sess.run([net_outputs, dice_loss, dice_hard_loss, iou_loss, train_op],
-                                                                         feed_dict={t_image:img_batch, t_seg:lab_batch})
-                    print(str(epoch) + ": loss for step " + str(step) +  " is " + str(dice_loss_))
-                    summary = tf.Summary()
-                    summary.value.add(tag='dice_loss', simple_value=dice_loss_)
-                    summary.value.add(tag='dice_hard', simple_value=dice_hard_loss_)
-                    summary.value.add(tag='iou_loss', simple_value=iou_loss_)
+                        a, dice_loss_, dice_hard_loss_, iou_loss_ ,_ = sess.run([net_outputs, dice_loss, dice_hard_loss, iou_loss, train_op],
+                                                                             feed_dict={t_image:img_batch, t_seg:lab_batch})
+                        print(str(epoch) + ": loss for step " + str(step) +  " is " + str(dice_loss_))
+                        summary = tf.Summary()
+                        summary.value.add(tag='dice_loss', simple_value=dice_loss_)
+                        summary.value.add(tag='dice_hard', simple_value=dice_hard_loss_)
+                        summary.value.add(tag='iou_loss', simple_value=iou_loss_)
 
-                    if step % 10 == 0:
-                        val_images, val_labels = get_validation(batch_size * 4)
-                        a, b, x_m = sess.run([net_outputs_val, t_one_hot_seg, accuracy_per_label], feed_dict={t_image:val_images, t_seg:val_labels})
-                        print("average accuracy for 11 labels are:")
-                        # image = tf.image.decode_png(a[2] * 20, channels=1)
-                        # image = tf.expand_dims(image, 0)
-                        # sess = tf.Session()
-                        # writer = tf.summary.FileWriter('logs')
-                        # summary.image("image1", image)
-                        print("<---------------Start Evaluation" + str(step) + "the Set---------------->")
-                        for i in range(11):
-                            print("label" + str(i) + ":" + str(x_m[i]))
-                            summary.value.add(tag='accuracy_label'+str(i), simple_value=x_m[i])
-                        summary.value.add(tag='accuracy_avg', simple_value=np.mean(x_m))
-                        print("<---------------End Evaluation" + str(step) + "the Set---------------->")
-                    summary_writer.add_summary(summary, g_step)
-                    g_step += 1
+                        if step % 10 == 0:
+                            val_images, val_labels = get_validation(batch_size * 4)
+                            a, b, x_m = sess.run([net_outputs_val, t_one_hot_seg, accuracy_per_label], feed_dict={t_image:val_images, t_seg:val_labels})
+                            print("average accuracy for 11 labels are:")
+                            # image = tf.image.decode_png(a[2] * 20, channels=1)
+                            # image = tf.expand_dims(image, 0)
+                            # sess = tf.Session()
+                            # writer = tf.summary.FileWriter('logs')
+                            # summary.image("image1", image)
+                            print("<---------------Start Evaluation" + str(step) + "the Set---------------->")
+                            for i in range(11):
+                                print("label" + str(i) + ":" + str(x_m[i]))
+                                summary.value.add(tag='accuracy_label'+str(i), simple_value=x_m[i])
+                            summary.value.add(tag='accuracy_avg', simple_value=np.mean(x_m))
+                            print("<---------------End Evaluation" + str(step) + "the Set---------------->")
+                        summary_writer.add_summary(summary, g_step)
+                        g_step += 1
 
 
-                print("<----------No." + str(n_epoch + 1) + "epoch ended---------->")
+                    print("<----------No." + str(n_epoch + 1) + "epoch ended---------->")
 
-            save_variables_and_metagraph(sess, saver, summary_writer, model_dir, subdir, n_epoch)
+                save_variables_and_metagraph(sess, saver, summary_writer, model_dir, subdir, n_epoch)
+
+            if (args.task == 'inference'):
+                # saver.restore(sess, args.model)
+                r_image = Image.fromarray(test_images[20])
+                r_image.show(title="origin image")
+                r_label = Image.fromarray(test_labels[20] * 30)
+                r_label.show(title="origin label")
+                test_image, test_label = get_inf(20)
+                net_inf_, infer_ = sess.run([net_inf, infer], feed_dict={t_image:test_image,t_seg:test_label})
+                net_inf_.shape = (image_size, image_size)
+                net_inf_ = net_inf_.astype(np.float64)
+                p_label = Image.fromarray(net_inf_ * 30)
+                p_label.show(title="predicted label")
+
 
     # Shuai Wang: training end
 
@@ -526,16 +557,18 @@ def main(task='all'):
     '''
 
 if __name__ == "__main__":
-    #import argparse
-    #parser = argparse.ArgumentParser()
-
-    #parser.add_argument('--task', type=str, default='all', help='all, necrotic, edema, enhance')
-
-    #args = parser.parse_args()
-
-    #main(args.task)
-
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--task', type=str, default='training', help='training or inference')
+    parser.add_argument('--model', type=str,
+                        default='/Volumes/PowerExtension/Pretrained_models/sw-unet/models/20181206-042805/model-20181206-042805.ckpt-6',
+                        help='set a pre-trained model path')
     image_size = 240
 
     generate_route()
-    main()
+
+    args = parser.parse_args()
+
+    main(args)
+
+
