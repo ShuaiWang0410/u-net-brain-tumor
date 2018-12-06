@@ -8,18 +8,18 @@ import os, time, model
 
 from datetime import datetime
 from PIL import Image
-root_path = "/Volumes/PowerExtension"
-#root_path = "/home/ec2-user"
+#root_path = "/Volumes/PowerExtension"
+root_path = "/home/ec2-user"
 
 source_path = "dataset/Processed"
 train_path = "train"
 test_path = "test"
 log_dir = "sw-unet/logs"
 model_dir = "sw-unet/models"
-# ratios_train = [0,2,3,4,6]
-# ratios_test = [1,5]
-ratios_train = [0]
-ratios_test = [1]
+ratios_train = [0,2,3,4,6]
+ratios_test = [1,5]
+#ratios_train = [0]
+#ratios_test = [1]
 
 test_file_paths = []
 train_file_paths = []
