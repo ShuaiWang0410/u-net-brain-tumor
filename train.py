@@ -398,7 +398,7 @@ def main(task='all'):
 
                 # Shuai Wang: training
                 print("<----------No." + str(epoch) + "epoch started---------->")
-                steps = (960 / batch_size) * len(ratios_train)
+                steps = int((960 / batch_size) * len(ratios_train))
                 for step in range(steps):
                     img_batch, lab_batch = next_batch(batch_size)
 
