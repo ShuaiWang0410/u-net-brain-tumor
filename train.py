@@ -262,11 +262,11 @@ def main(task='all'):
     '''
     ###======================== HYPER-PARAMETERS ============================###
     batch_size = 10
-    lr = 0.00001
+    lr = 0.000004
     # lr_decay = 0.5
     # decay_every = 100
     beta1 = 0.9
-    n_epoch = 6
+    n_epoch = 10
     print_freq_step = 100
     gpu_frac = 0.99
 
