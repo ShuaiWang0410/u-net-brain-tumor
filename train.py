@@ -21,6 +21,7 @@ train_file_paths = []
 
 image_size = 0
 cur_start = 0
+cur_start_val = 0
 train_size, test_size = 0,0
 train_images, train_labels, test_images, test_labels = '','','',''
 
@@ -154,8 +155,8 @@ def load_data(type = "train"):
     np.random.shuffle(full)
     images = np.concatenate((images, full[:, 0, :, :]))
     labels = np.concatenate((labels, full[:, 1, :, :]))
-    images /= 10.
-    images -= 20.
+    images /= 100.
+    images -= 2.
 
     if t == 0:
         train_size = labels.shape[0]
@@ -165,20 +166,34 @@ def load_data(type = "train"):
     return images, labels
 
 def get_validation(val_size):
-
-    global test_images, test_labels
-
+    '''
+    global test_images, test_labels,
     val_images = test_images[0:val_size,:,:]
     val_labels = test_labels[0:val_size,:,:]
     x = val_images.shape
     val_images.shape = (x[0], x[1], x[2], 1)
 
     return val_images, val_labels
+    '''
+    global test_images, test_labels, cur_start_val, test_size
 
+    start = cur_start_val
+    if start + val_size >= test_size:
+        end = train_size
+        cur_start_val = 0
+    else:
+        end = start + val_size
+        cur_start_val = end
+
+    img_batch = test_images[start:end, :, :]
+    x = img_batch.shape
+    img_batch.shape = (x[0], x[1], x[2], 1)
+    lab_batch = test_labels[start:end, :, :]
+    return img_batch, lab_batch
 
 
 def next_batch(batch_size):
-    global train_images, train_labels, cur_start
+    global train_images, train_labels, cur_start, train_size
 
     start = cur_start
     if start + batch_size >= train_size:
@@ -201,15 +216,16 @@ def main(task='all'):
     ## Create folder to save trained model and result images
 
     global train_images, train_labels, test_images, test_labels
+    global model_dir, log_dir
 
-    ratios_train = [0,2,4]
-    ratios_test = [1]
+    ratios_train = [0,2,3,4,6]
+    ratios_test = [1,5]
 
     split_data(ratios_train,ratios_test)
     train_images, train_labels = load_data("train")
-    print("reading training set is done")
+    print("reading training set is done, train size is "+str(train_size/960))
     test_images, test_labels = load_data("test")
-    print("reading test set is done")
+    print("reading test set is done, test size is "+str(test_size/960))
     '''
     save_dir = "checkpoint"
     tl.files.exists_or_mkdir(save_dir)
@@ -245,12 +261,12 @@ def main(task='all'):
         exit("Unknow task %s" % task)
     '''
     ###======================== HYPER-PARAMETERS ============================###
-    batch_size = 5
+    batch_size = 10
     lr = 0.01
     # lr_decay = 0.5
     # decay_every = 100
     beta1 = 0.9
-    n_epoch = 3
+    n_epoch = 6
     print_freq_step = 100
     gpu_frac = 0.99
 
@@ -279,14 +295,16 @@ def main(task='all'):
 
     '''===========================GENERATE LOG AND MODEL DIRS ================'''
     subdir = datetime.strftime(datetime.now(), '%Y%m%d-%H%M%S')
+    model_dir = os.path.join(model_dir, subdir)
+    log_dir = os.path.join(log_dir, subdir)
     try:
-        os.makedirs(os.path.join(model_dir, subdir))
+        os.makedirs(model_dir)
         print("Model directory:" + model_dir)
     except FileExistsError:
         print("Model directory alreadly exist:" + model_dir)
 
     try:
-        os.makedirs(os.path.join(log_dir, subdir))
+        os.makedirs(log_dir)
         print("Log directory alreadly exist:" + log_dir)
     except FileExistsError:
         print("Log directory alreadly exist:" + log_dir)
@@ -374,33 +392,43 @@ def main(task='all'):
         ###======================== TRAINING ================================###
         with sess.as_default():
             print("<---------------Start Training the Set---------------->")
-            val_images, val_labels = get_validation(10)
+            # val_images, val_labels = get_validation(batch_size * 4)
             for epoch in range(0, n_epoch):
                 epoch_time = time.time()
 
                 # Shuai Wang: training
-                print("<----------No." + str(n_epoch + 1) + "epoch started---------->")
-                steps = 96 * len(ratios_train)
+                print("<----------No." + str(epoch) + "epoch started---------->")
+                steps = (960 / batch_size) * len(ratios_train)
                 for step in range(steps):
                     img_batch, lab_batch = next_batch(batch_size)
+
                     a, dice_loss_, dice_hard_loss_, iou_loss_ ,_ = sess.run([net_outputs, dice_loss, dice_hard_loss, iou_loss, train_op],
                                                                          feed_dict={t_image:img_batch, t_seg:lab_batch})
-                    print("loss for step " + str(step) +  " is " + str(dice_loss_))
+                    print(str(epoch) + ": loss for step " + str(step) +  " is " + str(dice_loss_))
                     summary = tf.Summary()
                     summary.value.add(tag='dice_loss', simple_value=dice_loss_)
                     summary.value.add(tag='dice_hard', simple_value=dice_hard_loss_)
                     summary.value.add(tag='iou_loss', simple_value=iou_loss_)
+
+                    if step % 10 == 0:
+                        val_images, val_labels = get_validation(batch_size * 4)
+                        a, b, x_m = sess.run([net_outputs_val, t_one_hot_seg, accuracy_per_label], feed_dict={t_image:val_images, t_seg:val_labels})
+                        print("average accuracy for 11 labels are:")
+                        # image = tf.image.decode_png(a[2] * 20, channels=1)
+                        # image = tf.expand_dims(image, 0)
+                        # sess = tf.Session()
+                        # writer = tf.summary.FileWriter('logs')
+                        # summary.image("image1", image)
+
+                        for i in range(11):
+                            print("label" + str(i) + ":" + str(x_m[i]))
+                            summary.value.add(tag='accuracy_label'+str(i), simple_value=x_m[i])
+                        summary.value.add(tag='accuracy_avg', simple_value=np.mean(x_m))
                     summary_writer.add_summary(summary, g_step)
                     g_step += 1
 
-                    if step % 10 == 0:
-                        a, b, x_m = sess.run([net_outputs_val, t_one_hot_seg, accuracy_per_label], feed_dict={t_image:val_images, t_seg:val_labels})
-                        print("average accuracy for 11 labels are:")
-                        for i in range(11):
-                            print("label" + str(i) + ":" + str(x_m[i]))
 
                 print("<----------No." + str(n_epoch + 1) + "epoch ended---------->")
-
 
             save_variables_and_metagraph(sess, saver, summary_writer, model_dir, subdir, n_epoch)
 
