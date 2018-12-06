@@ -419,7 +419,7 @@ def main(args):
                     for step in range(steps):
                         img_batch, lab_batch = next_batch(batch_size)
 
-                        a, dice_loss_, dice_hard_loss_, iou_loss_ ,_ = sess.run([net_outputs, dice_loss, dice_hard_loss, iou_loss, train_op],
+                        a, dice_loss_, dice_hard_loss_, iou_loss_ ,_ = sess.run([net_output, dice_loss, dice_hard_loss, iou_loss, train_op],
                                                                              feed_dict={t_image:img_batch, t_seg:lab_batch})
                         print(str(epoch) + ": loss for step " + str(step) +  " is " + str(dice_loss_))
                         summary = tf.Summary()
