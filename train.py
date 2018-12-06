@@ -262,7 +262,7 @@ def main(task='all'):
     '''
     ###======================== HYPER-PARAMETERS ============================###
     batch_size = 10
-    lr = 0.00000001
+    lr = 0.000001
     # lr_decay = 0.5
     # decay_every = 100
     beta1 = 0.9
