@@ -419,11 +419,12 @@ def main(task='all'):
                         # sess = tf.Session()
                         # writer = tf.summary.FileWriter('logs')
                         # summary.image("image1", image)
-
+                        print("<---------------Start Evaluation" + str(step) + "the Set---------------->")
                         for i in range(11):
                             print("label" + str(i) + ":" + str(x_m[i]))
                             summary.value.add(tag='accuracy_label'+str(i), simple_value=x_m[i])
                         summary.value.add(tag='accuracy_avg', simple_value=np.mean(x_m))
+                        print("<---------------End Evaluation" + str(step) + "the Set---------------->")
                     summary_writer.add_summary(summary, g_step)
                     g_step += 1
 
