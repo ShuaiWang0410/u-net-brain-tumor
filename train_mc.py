@@ -403,7 +403,7 @@ def main(args):
     # lr_decay = 0.5
     # decay_every = 100
     beta1 = 0.9
-    n_epoch = 600
+    n_epoch = 3
     print_freq_step = 600
     gpu_frac = 0.99
 
@@ -586,6 +586,7 @@ def main(args):
 
 
                     print("<----------No." + str(n_epoch + 1) + "epoch ended---------->")
+                summary = tf.Summary()
                 summary.value.add(tag='total_dice_loss', simple_value=total_dice)
                 summary.value.add(tag='total_dice_hard', simple_value=total_dice_hard)
                 summary.value.add(tag='total_iou_loss', simple_value=total_iou)
