@@ -9,8 +9,8 @@ import os, time, model
 
 from datetime import datetime
 from PIL import Image
-root_path = "/Volumes/PowerExtension"
-#root_path = "/home/ec2-user"
+#root_path = "/Volumes/PowerExtension"
+root_path = "/home/ec2-user"
 
 # source_path = "dataset/Processed_2"
 source_path = "Processed_2"
@@ -31,6 +31,7 @@ cur_start = 0
 cur_start_val = 0
 train_size, test_size = 0,0
 train_images, train_labels, test_images, test_labels = '','','',''
+elastic_pairs = [[720,24], [1000, 40], [1000, 60], [1000, 80]]
 
 def elastic_transformations(alpha, sigma, rng=np.random.RandomState(42),
                             interpolation_order=1):
@@ -184,8 +185,7 @@ def load_data_mc(type = "train"):
     np.random.shuffle(full)
     images = np.concatenate((images, full[:, :, :, 0:4]))
     labels = np.concatenate((labels, full[:, :, :, 4]))
-    images /= 10.
-    images -= 20.
+    images /= 100.
 
     if t == 0:
         train_size = labels.shape[0]
@@ -285,8 +285,8 @@ def load_data(type = "train"):
     np.random.shuffle(full)
     images = np.concatenate((images, full[:, 0, :, :]))
     labels = np.concatenate((labels, full[:, 1, :, :]))
-    images /= 10.
-    images += 20.
+    images /= 100.
+    images -= 20.
 
     if t == 0:
         train_size = labels.shape[0]
@@ -403,7 +403,7 @@ def main(args):
     # lr_decay = 0.5
     # decay_every = 100
     beta1 = 0.9
-    n_epoch = 30
+    n_epoch = 80
     print_freq_step = 100
     gpu_frac = 0.99
 
@@ -411,24 +411,6 @@ def main(args):
     nw = image_size
     nh = image_size
     nc = 4
-    '''
-    ###======================== SHOW DATA ===================================###
-    # show one slice
-    X = np.asarray(X_train[80])
-    y = np.asarray(y_train[80])
-    # print(X.shape, X.min(), X.max()) # (240, 240, 4) -0.380588 2.62761
-    # print(y.shape, y.min(), y.max()) # (240, 240, 1) 0 1
-    nw, nh, nz = X.shape
-    vis_imgs(X, y, 'samples/{}/_train_im.png'.format(task))
-    # show data augumentation results
-    for i in range(10):
-        x_flair, x_t1, x_t1ce, x_t2, label = distort_imgs([X[:,:,0,np.newaxis], X[:,:,1,np.newaxis],
-                X[:,:,2,np.newaxis], X[:,:,3,np.newaxis], y])#[:,:,np.newaxis]])
-        # print(x_flair.shape, x_t1.shape, x_t1ce.shape, x_t2.shape, label.shape) # (240, 240, 1) (240, 240, 1) (240, 240, 1) (240, 240, 1) (240, 240, 1)
-        X_dis = np.concatenate((x_flair, x_t1, x_t1ce, x_t2), axis=2)
-        # print(X_dis.shape, X_dis.min(), X_dis.max()) # (240, 240, 4) -0.380588233471 2.62376139209
-        vis_imgs(X_dis, label, 'samples/{}/_train_im_aug{}.png'.format(task, i))
-    '''
 
     '''===========================GENERATE LOG AND MODEL DIRS ================'''
     subdir = datetime.strftime(datetime.now(), '%Y%m%d-%H%M%S')
@@ -494,21 +476,6 @@ def main(args):
         net_inf = tf.argmax(net_test.outputs, 3)
         infer = tf.reduce_mean(tf.cast(tf.equal(net_inf, tf.argmax(t_one_hot_seg, 3)), tf.float32), axis = (1,2))
 
-        '''
-        ###======================== DEFINE LOSS =========================###
-        ## train losses
-        out_seg = net.outputs
-        dice_loss = 1 - tl.cost.dice_coe(out_seg, t_seg, axis=[0,1,2,3])#, 'jaccard', epsilon=1e-5)
-        iou_loss = tl.cost.iou_coe(out_seg, t_seg, axis=[0,1,2,3])
-        dice_hard = tl.cost.dice_hard_coe(out_seg, t_seg, axis=[0,1,2,3])
-        loss = dice_loss
-
-        ## test losses
-        test_out_seg = net_test.outputs
-        test_dice_loss = 1 - tl.cost.dice_coe(test_out_seg, t_seg, axis=[0,1,2,3])#, 'jaccard', epsilon=1e-5)
-        test_iou_loss = tl.cost.iou_coe(test_out_seg, t_seg, axis=[0,1,2,3])
-        test_dice_hard = tl.cost.dice_hard_coe(test_out_seg, t_seg, axis=[0,1,2,3])
-        '''
         ###======================== DEFINE TRAIN OPTS =======================###
         t_vars = tl.layers.get_variables_with_name('u_net', True, True)
         # with tf.device('/gpu:0'):
@@ -530,6 +497,7 @@ def main(args):
         ## tl.files.load_and_assign_npz(sess=sess, name=save_dir+'/u_net_{}.npz'.format(task), network=net)
 
         g_step = 0
+        sw = 0
         ###======================== TRAINING ================================###
         total_dice, total_iou, total_dice_hard, n_batch = 0, 0, 0, 0
         with sess.as_default():
@@ -541,7 +509,10 @@ def main(args):
 
                     # Shuai Wang: training
                     print("<----------No." + str(epoch) + "epoch started---------->")
-                    steps = int((960 / batch_size) * len(ratios_train))
+                    steps = int(((48 * len(ratios_train))/ batch_size) )
+                    if (epoch % 2 == 1):
+                        sw += 1
+                        sw = sw % 4
                     for step in range(steps):
                         img_batch, lab_batch = next_batch_mc(batch_size)
 
@@ -571,7 +542,7 @@ def main(args):
                             '''
                             x_s = []
                             for i in range(batch_size):
-                                cut = elastic_transformations(720,24)(
+                                cut = elastic_transformations(elastic_pairs[sw][0], elastic_pairs[sw][1])(
                                                                         [img_batch[i, :, :, 0],
                                                                          img_batch[i, :, :, 1],
                                                                          img_batch[i, :, :, 2],
@@ -596,7 +567,7 @@ def main(args):
                         total_dice_hard += dice_hard_loss_
 
                         if step % 10 == 0:
-                            val_images, val_labels = get_validation_mc(batch_size * 4)
+                            val_images, val_labels = get_validation_mc(48)
                             a, b, x_m = sess.run([net_outputs_val, t_one_hot_seg, accuracy_per_label], feed_dict={t_image:val_images, t_seg:val_labels})
                             print("average accuracy for 11 labels are:")
                             # image = tf.image.decode_png(a[2] * 20, channels=1)
@@ -648,85 +619,7 @@ def main(args):
     #     sess.run(tf.assign(lr_v, lr))
     #     log = " ** init lr: %f  decay_every_epoch: %d, lr_decay: %f" % (lr, decay_every, lr_decay)
     #     print(log)
-    '''
-    total_dice, total_iou, total_dice_hard, n_batch = 0, 0, 0, 0
-    for batch in tl.iterate.minibatches(inputs=X_train, targets=y_train,
-                                batch_size=batch_size, shuffle=True):
-        images, labels = batch
-        step_time = time.time()
-        ## data augumentation for a batch of Flair, T1, T1c, T2 images
-        # and label maps synchronously.
-        data = tl.prepro.threading_data([_ for _ in zip(images[:,:,:,0, np.newaxis],
-                images[:,:,:,1, np.newaxis], images[:,:,:,2, np.newaxis],
-                images[:,:,:,3, np.newaxis], labels)],
-                fn=distort_imgs) # (10, 5, 240, 240, 1)
-        b_images = data[:,0:4,:,:,:]  # (10, 4, 240, 240, 1)
-        b_labels = data[:,4,:,:,:]
-        b_images = b_images.transpose((0,2,3,1,4))
-        b_images.shape = (batch_size, nw, nh, nz)
 
-        ## update network
-        _, _dice, _iou, _diceh, out = sess.run([train_op,
-                dice_loss, iou_loss, dice_hard, net.outputs],
-                {t_image: b_images, t_seg: b_labels})
-        total_dice += _dice; total_iou += _iou; total_dice_hard += _diceh
-        n_batch += 1
-
-        ## you can show the predition here:
-        # vis_imgs2(b_images[0], b_labels[0], out[0], "samples/{}/_tmp.png".format(task))
-        # exit()
-
-        # if _dice == 1: # DEBUG
-        #     print("DEBUG")
-        #     vis_imgs2(b_images[0], b_labels[0], out[0], "samples/{}/_debug.png".format(task))
-
-        if n_batch % print_freq_step == 0:
-            print("Epoch %d step %d 1-dice: %f hard-dice: %f iou: %f took %fs (2d with distortion)"
-            % (epoch, n_batch, _dice, _diceh, _iou, time.time()-step_time))
-
-        ## check model fail
-        if np.isnan(_dice):
-            exit(" ** NaN loss found during training, stop training")
-        if np.isnan(out).any():
-            exit(" ** NaN found in output images during training, stop training")
-
-    print(" ** Epoch [%d/%d] train 1-dice: %f hard-dice: %f iou: %f took %fs (2d with distortion)" %
-            (epoch, n_epoch, total_dice/n_batch, total_dice_hard/n_batch, total_iou/n_batch, time.time()-epoch_time))
-
-    ## save a predition of training set
-    for i in range(batch_size):
-        if np.max(b_images[i]) > 0:
-            vis_imgs2(b_images[i], b_labels[i], out[i], "samples/{}/train_{}.png".format(task, epoch))
-            break
-        elif i == batch_size-1:
-            vis_imgs2(b_images[i], b_labels[i], out[i], "samples/{}/train_{}.png".format(task, epoch))
-    '''
-    ###======================== EVALUATION ==========================###
-    '''
-    total_dice, total_iou, total_dice_hard, n_batch = 0, 0, 0, 0
-    for batch in tl.iterate.minibatches(inputs=X_test, targets=y_test,
-                                    batch_size=batch_size, shuffle=True):
-        b_images, b_labels = batch
-        _dice, _iou, _diceh, out = sess.run([test_dice_loss,
-                test_iou_loss, test_dice_hard, net_test.outputs],
-                {t_image: b_images, t_seg: b_labels})
-        total_dice += _dice; total_iou += _iou; total_dice_hard += _diceh
-        n_batch += 1
-
-    print(" **"+" "*17+"test 1-dice: %f hard-dice: %f iou: %f (2d no distortion)" %
-            (total_dice/n_batch, total_dice_hard/n_batch, total_iou/n_batch))
-    print(" task: {}".format(task))
-    ## save a predition of test set
-    for i in range(batch_size):
-        if np.max(b_images[i]) > 0:
-            vis_imgs2(b_images[i], b_labels[i], out[i], "samples/{}/test_{}.png".format(task, epoch))
-            break
-        elif i == batch_size-1:
-            vis_imgs2(b_images[i], b_labels[i], out[i], "samples/{}/test_{}.png".format(task, epoch))
-
-    ###======================== SAVE MODEL ==========================###
-    tl.files.save_npz(net.all_params, name=save_dir+'/u_net_{}.npz'.format(task), sess=sess)
-    '''
 
 if __name__ == "__main__":
     import argparse
