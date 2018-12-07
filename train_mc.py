@@ -398,13 +398,13 @@ def main(args):
         exit("Unknow task %s" % task)
     '''
     ###======================== HYPER-PARAMETERS ============================###
-    batch_size = 10
+    batch_size = 5
     lr = 0.000001
     # lr_decay = 0.5
     # decay_every = 100
     beta1 = 0.9
-    n_epoch = 80
-    print_freq_step = 100
+    n_epoch = 600
+    print_freq_step = 600
     gpu_frac = 0.99
 
     n_out = 11
@@ -566,7 +566,7 @@ def main(args):
                         total_iou += iou_loss_
                         total_dice_hard += dice_hard_loss_
 
-                        if step % 10 == 0:
+                        if step % 6 == 0:
                             val_images, val_labels = get_validation_mc(48)
                             a, b, x_m = sess.run([net_outputs_val, t_one_hot_seg, accuracy_per_label], feed_dict={t_image:val_images, t_seg:val_labels})
                             print("average accuracy for 11 labels are:")
