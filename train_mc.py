@@ -18,7 +18,7 @@ train_path = "train"
 test_path = "test"
 log_dir = "sw-unet/logs"
 model_dir = "sw-unet/models"
-ratios_train = [0,2,3,4,6]
+ratios_train = [0]
 ratios_test = [1,5]
 #ratios_train = [0]
 #ratios_test = [1]
@@ -489,7 +489,7 @@ def main(args):
         config = tf.ConfigProto(gpu_options=gpu_options, allow_soft_placement=True)
         config.gpu_options.allow_growth = True
         sess = tf.Session(config=config, graph=tf.get_default_graph())
-        saver = tf.train.Saver(max_to_keep=2)
+        saver = tf.train.Saver(tf.trainable_variables(), max_to_keep=2)
         summary_writer = tf.summary.FileWriter(log_dir, sess.graph)
         # if (args.task == 'training'):
         tl.layers.initialize_global_variables(sess)
@@ -596,8 +596,8 @@ def main(args):
 
             if (args.task == 'inference'):
                 # saver.restore(sess, args.model)
-                r_image = Image.fromarray(test_images[20])
-                r_image.show(title="origin image")
+                # r_image = Image.fromarray(test_images[20])
+                # r_image.show(title="origin image")
                 r_label = Image.fromarray(test_labels[20] * 30)
                 r_label.show(title="origin label")
                 test_image, test_label = get_inf_mc(20)
@@ -627,7 +627,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--task', type=str, default='training', help='training or inference')
     parser.add_argument('--model', type=str,
-                        default='/Volumes/PowerExtension/Pretrained_models/sw-unet/models/20181206-042805/model-20181206-042805.ckpt-6',
+                        default='/Volumes/PowerExtension/Pretrained_models/sw-unet/models/20181207-222507/model-20181207-222507.ckpt-60',
                         help='set a pre-trained model path')
     image_size = 240
 
