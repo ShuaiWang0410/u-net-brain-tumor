@@ -119,6 +119,102 @@ def split_data(training_series, test_series):
     for i in test_series:
         test_file_paths.append(os.path.join(source_path, str(i) + ".npy"))
 
+def load_data_mc(type = "train"):
+
+    global image_size, train_size, test_size
+
+    t = 0
+    if (type == "train"):
+        set = train_file_paths
+    else:
+        set = test_file_paths
+        t = 1
+
+    full = np.ndarray(shape=(0, image_size, image_size, 5))
+
+    images = np.ndarray(shape=(0, image_size, image_size, 4))
+    labels = np.ndarray(shape=(0, image_size, image_size, 1))
+
+    for path in set:
+        n = np.load(path)
+        full = np.concatenate((full, n))
+
+        # max： around 500
+        # min:  around 1
+
+        max = 0.
+        min = 8.
+        for j in range(images.shape[0]):
+            if images[j].max() > max:
+                max = images[j].max()
+            if images[j].min() < min:
+                min = images[j].min()
+
+        # print(images[0])
+        print("Reading " + type + " dataset:" + path + " finished")
+    np.random.shuffle(full)
+    images = np.concatenate((images, full[:, :, :, 0:4]))
+    labels = np.concatenate((labels, full[:, :, :, 4]))
+    images /= 10.
+    images -= 20.
+
+    if t == 0:
+        train_size = labels.shape[0]
+    else:
+        test_size = labels.shape[0]
+    labels = labels.astype(np.int32)
+    return images, labels
+
+def get_inf_mc(number):
+    global test_images, test_labels
+    img_batch = test_images[number, :, :, :]
+    x = img_batch.shape
+    img_batch.shape = (1, x[0], x[1], x[2])
+    lab_batch = test_labels[number, :, :]
+    y = lab_batch.shape
+    lab_batch.shape = (1, y[0], y[1])
+    return img_batch, lab_batch
+
+def get_validation_mc(val_size):
+    '''
+    global test_images, test_labels,
+    val_images = test_images[0:val_size,:,:]
+    val_labels = test_labels[0:val_size,:,:]
+    x = val_images.shape
+    val_images.shape = (x[0], x[1], x[2], 1)
+
+    return val_images, val_labels
+    '''
+    global test_images, test_labels, cur_start_val, test_size
+
+    start = cur_start_val
+    if start + val_size >= test_size:
+        end = train_size
+        cur_start_val = 0
+    else:
+        end = start + val_size
+        cur_start_val = end
+
+    img_batch = test_images[start:end, :, :,:]
+    lab_batch = test_labels[start:end, :, :]
+    return img_batch, lab_batch
+
+
+def next_batch_mc(batch_size):
+    global train_images, train_labels, cur_start, train_size
+
+    start = cur_start
+    if start + batch_size >= train_size:
+        end = train_size
+        cur_start = 0
+    else:
+        end = start + batch_size
+        cur_start = end
+
+    img_batch = train_images[start:end,:,:,:]
+    lab_batch = train_labels[start:end,:,:]
+    return img_batch, lab_batch
+
 
 
 def load_data(type = "train"):
