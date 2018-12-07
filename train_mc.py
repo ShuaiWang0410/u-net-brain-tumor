@@ -403,7 +403,7 @@ def main(args):
     # lr_decay = 0.5
     # decay_every = 100
     beta1 = 0.9
-    n_epoch = 60
+    n_epoch = 3
     print_freq_step = 600
     gpu_frac = 0.99
 
