@@ -18,7 +18,7 @@ train_path = "train"
 test_path = "test"
 log_dir = "sw-unet/logs"
 model_dir = "sw-unet/models"
-ratios_train = [0]
+ratios_train = [0,2,3,4,6]
 ratios_test = [1,5]
 #ratios_train = [0]
 #ratios_test = [1]
@@ -403,7 +403,7 @@ def main(args):
     # lr_decay = 0.5
     # decay_every = 100
     beta1 = 0.9
-    n_epoch = 3
+    n_epoch = 40
     print_freq_step = 600
     gpu_frac = 0.99
 
