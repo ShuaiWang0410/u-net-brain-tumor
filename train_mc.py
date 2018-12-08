@@ -185,7 +185,12 @@ def load_data_mc(type = "train"):
     np.random.shuffle(full)
     images = np.concatenate((images, full[:, :, :, 0:4]))
     labels = np.concatenate((labels, full[:, :, :, 4]))
-    images /= 100.
+    images[:, :, :, 0]/= 100.
+    images[:, :, :, 1] /= 2000.
+    images[:, :, :, 2] /= 2000.
+    images[:, :, :, 3] /= 100.
+
+
 
     if t == 0:
         train_size = labels.shape[0]
@@ -399,7 +404,7 @@ def main(args):
     '''
     ###======================== HYPER-PARAMETERS ============================###
     batch_size = 5
-    lr = 0.000001
+    lr = 0.00001
     # lr_decay = 0.5
     # decay_every = 100
     beta1 = 0.9
@@ -595,9 +600,9 @@ def main(args):
                 save_variables_and_metagraph(sess, saver, summary_writer, model_dir, subdir, n_epoch)
 
             if (args.task == 'inference'):
-                # saver.restore(sess, args.model)
-                # r_image = Image.fromarray(test_images[20])
-                # r_image.show(title="origin image")
+                saver.restore(sess, args.model)
+                r_image = Image.fromarray(test_images[20])
+                r_image.show(title="origin image")
                 r_label = Image.fromarray(test_labels[20] * 30)
                 r_label.show(title="origin label")
                 test_image, test_label = get_inf_mc(20)
@@ -627,7 +632,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--task', type=str, default='training', help='training or inference')
     parser.add_argument('--model', type=str,
-                        default='/Volumes/PowerExtension/Pretrained_models/sw-unet/models/20181207-222507/model-20181207-222507.ckpt-60',
+                        default='/Volumes/PowerExtension/Pretrained_models/sw-unet/models/20181207-234912/model-20181207-234912.ckpt-30',
                         help='set a pre-trained model path')
     image_size = 240
 
