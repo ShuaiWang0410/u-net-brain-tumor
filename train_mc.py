@@ -19,6 +19,7 @@ test_path = "test"
 log_dir = "sw-unet/logs"
 model_dir = "sw-unet/models"
 ratios_train = [0,2,3,4,6]
+#ratios_train = [0]
 ratios_test = [1,5]
 #ratios_train = [0]
 #ratios_test = [1]
@@ -404,7 +405,7 @@ def main(args):
     '''
     ###======================== HYPER-PARAMETERS ============================###
     batch_size = 5
-    lr = 0.00001
+    lr = 0.000003
     # lr_decay = 0.5
     # decay_every = 100
     beta1 = 0.9
@@ -601,8 +602,8 @@ def main(args):
 
             if (args.task == 'inference'):
                 saver.restore(sess, args.model)
-                r_image = Image.fromarray(test_images[20])
-                r_image.show(title="origin image")
+                #r_image = Image.fromarray(test_images[20])
+                #r_image.show(title="origin image")
                 r_label = Image.fromarray(test_labels[20] * 30)
                 r_label.show(title="origin label")
                 test_image, test_label = get_inf_mc(20)
@@ -632,7 +633,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--task', type=str, default='training', help='training or inference')
     parser.add_argument('--model', type=str,
-                        default='/Volumes/PowerExtension/Pretrained_models/sw-unet/models/20181207-234912/model-20181207-234912.ckpt-30',
+                        default='/Volumes/PowerExtension/Pretrained_models/sw-unet/models/20181208-005704/model-20181208-005704.ckpt-30',
                         help='set a pre-trained model path')
     image_size = 240
 
